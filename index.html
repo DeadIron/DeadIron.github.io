@@ -8,28 +8,112 @@
 </head>
 
 <body>
-<h1>午夜的阴阳师小站</h1>
+<h2>午夜的阴阳师小站</h2>
 <p>欢迎来到午夜的阴阳师小站</p>
+
+<div>
+<h3>工具</h3>
+<a href='guess_heiankyou.html'>对弈平安京</a>
+<br />
+</div>
+
+<h3>式神信息查询</h3>
+<div class="wrapper">
+    <div class="data-aside">
+        <h4>筛选</h4>
+        <div id="hero_filters" class="filtersbox">
+            <label><input class="filter"  name="rareness" type="radio" value="ssr_tag" onclick=run()>SSR</label><br />		
+            <label><input class="filter"  name="rareness" type="radio" value="sr_tag" onclick=run()>SR</label><br />
+            <label><input class="filter" name="rareness" type="radio" value="r_tag" onclick=run()>R</label><br />
+            <label><input class="filter"  name="rareness" type="radio" value="n_tag" onclick=run()>N</label><br />
+            <label><input class="filter"  name="rareness" type="radio" value="ld_tag" onclick=run()>联动</label><br />
+            <label><input id="show_all_filter" name="rareness" type="radio" value="all" checked onclick=run()>全部</label>
+        </div> 
+    </div>
+
+    <div class="data-main">
+        <div class="hero-list">
+            <div class="mod-pic">
+                <div class="mod-pic-hd">
+                    <h4>式神列表</h4>
+                </div>
+                <div class="mod-pic-bd">
+                    <ul id="ss_list">
+                        
+                        <li class="ssr_tag" style="display:block;">
+                            <a target="_blank" href="ssinfo/jsz.html" class="ss"><img class="ss_icon" src="icon/269.png" /></a>
+                            <div class="ss_name" >妖刀姬</div>
+                        </li>
+                        
+                        <li class="ssr_tag">
+                            <a target="_blank" href="ssinfo/jsz.html" class="ss"><img class="ss_icon" src="icon/217.png" /></a>
+                            <div class="ss_name">大天狗</div>
+                        </li>
+                        
+                        <li class="sr_tag">
+                            <a target="_blank" href="ssinfo/jsz.html" class="ss"><img class="ss_icon" src="icon/200.png" /></a>
+                            <div class="ss_name">桃花妖</div>
+                        </li>
+                        
+                        <li class="sr_tag">
+                            <a target="_blank" href="ssinfo/jsz.html" class="ss"><img class="ss_icon" src="icon/201.png" /></a>
+                            <div class="ss_name">雪女</div>
+                        </li>
+                        
+                        <li class="r_tag">
+                            <a target="_blank" href="ssinfo/jsz.html" class="ss"><img class="ss_icon" src="icon/202.png" /></a>
+                            <div class="ss_name">三尾狐</div>
+                        </li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>				
+        </div>
+            
+    </div>
+</div>
+
+<div>
+<h3>更新日志</h3>
+<p>2018/5/15</p>
+<p>简单完成了主页的构建</p>
+</div>
+
+
 <div>
 <h3>联系方式：</h3>
 <p>阴阳师 @两情相悦 <img src='1.png'>(鹣：jian1，比翼鸟)</p>
 <p>微博 @<a href=https://weibo.com/6018826889/ target='_blank'>不晓得说些啥子好</a></p>
 <p>Github @<a href=https://github.com/DeadIron/DeadIron.github.io/ target='_blank'>DeadIron</a></p>
 </div>
-<div>
-<h3>工具</h3>
-<a href='guess_heiankyou.html'>对弈平安京</a>
-</div>
-<div>
-<h3>式神信息查询</h3>
-<p>暂无</p>
-</div>
-<div>
-<h3>更新日志</h3>
-<p>2018/5/15</p>
-<p>简单完成了主页的构建</p>
-</div>
+
 </body>
 
+<!--js部分-->
+<script type="text/javascript"> 
+function run(){
+    var obj=document.getElementsByName('rareness');
+    for (var i=0;i<obj.length;i++){
+        if (obj[i].checked){
+            var tag=obj[i].value;
+        }
+    }
+
+    var tags=new Array('ssr_tag','sr_tag','r_tag','n_tag','ld_tag')
+    for (j in tags){
+        var a=document.getElementsByClassName(tags[j]);
+        for (var i=0;i<a.length;i++)
+        {
+            if (tag==tags[j]||tag=="all"){
+                a[i].style.display='block';
+            }
+            else{
+                a[i].style.display='none'
+            }
+        }    
+    }
+}
+</script> 
 
 </html>
