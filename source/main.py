@@ -7,6 +7,7 @@ import process as pr
 import threading
 from tkinter import filedialog
 from tkinter import messagebox
+import animation as anm
 
 tempFlag=0
 
@@ -309,6 +310,47 @@ def run3():
     th=threading.Thread(target=run2,args=())
     th.start()
 
+def run4():
+    t=loadData()
+    if t:
+        r,b=t
+    else:
+        return 0
+    g={}
+    g[0]=sg.裁判旗()
+
+#行动条的初始化
+
+    action=[b[1],b[2],b[3],b[4],b[5],r[1],r[2],r[3],r[4],r[5],g[0]]
+    action.sort(key=lambda x:(x.sp,-x.id))
+
+#设立data是为了后面能够更容易传参，利用了python传字典参数时浅拷贝，变相使得变量全局化，同时使得调全局变量更加统一有条理。
+
+    data={'units':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
+          'uands':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
+          'teams':[r,b],
+          'action':action,
+          'win':0,
+          'mode':0,
+          'orb':[4,4],
+          'getOrb':[3,3],
+          'orbPo':[0,0],
+          'swords':0,
+          'extra':[],
+          '反击':[],
+          'summons':[None,None],
+          'summonsSpecial':[None,None,None,None,None,None,None,None,None,None],
+          'ids':10,
+          'log':[],
+          'debug':0,
+          'animation'={},
+          }
+    th2=threading.Thread(target=anm.main,kwargs=({'data':data}))
+    th2.start()
+    th3=threading.Thread(target=pr.main,args=(-1,r,b,0))
+    th3.start()
+    
+    
 def lockTeam():
     if teamInfo:
         if b3v.get():
@@ -344,7 +386,8 @@ b1=Button(monty01,text='单局过程',command=run)
 b1.grid(column=0,row=0,padx=10,pady=10)
 b2=Button(monty01,text='多局胜率',command=run3)
 b2.grid(column=0,row=1,padx=10,pady=10)
-
+b3=Button(monty01,text='单局动画',command=run4)
+b3.grid(column=0,row=2,padx=10,pady=10)
 
 monty03=ttk.LabelFrame(tab1,text='辅助选项')
 monty03.grid(column=0,row=1,padx=10,pady=10)

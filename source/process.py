@@ -231,7 +231,6 @@ def main(mode,r,b,rwins=[0],debug=0):
 
     return 2-data['win'],data['log']
 
- 
 
 
 ##############下面是主程序######################################
