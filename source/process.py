@@ -2,10 +2,23 @@
 # -*- coding: utf-8 -*-
 
 from  shikigami import *
-
+from collections import deque
 mode=0 #mode:0单局输出模式，其他正数即重复多次给出胜率
 
-
+class animation():
+    def __init__(self):
+        self.atk=0
+        self.atkf=None
+        self.atkt=None
+        
+        self.heal=0
+        self.healf=None
+        self.healt=None
+        
+        self.action=None
+        self.turn=None
+        
+        self.hpChange=[]
 
 
 ###########################式神初始化############
@@ -171,7 +184,7 @@ if __name__=='__main__':
         })
 
 
-def main(mode,r,b,rwins=[0],debug=0):
+def main(mode,r,b,rwins=[0],debug=0,animation=None):
 #############################后面的不要乱动了############################
     g={}
     g[0]=裁判旗()
@@ -200,6 +213,7 @@ def main(mode,r,b,rwins=[0],debug=0):
           'ids':10,
           'log':[],
           'debug':debug,
+          'animation':animation,
           }
     data['units'].sort(key=lambda x:x.id)
 

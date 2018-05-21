@@ -91,7 +91,7 @@ def resisted(r,giver,data):
                             })
 
 
-def hpChange(changer,num,data,flag=None):
+def hpChange(changer,num,data,flag=None,label=None):
     if changer.soul=='镇墓兽' and canUseSoul(d['from'],data) :
         temp=num
         if num<-changer.hp:
@@ -125,6 +125,8 @@ def hpChange(changer,num,data,flag=None):
             my_print(data,"%s回复生命%.0f，现在生命为%.0f"%(changer.name,num,changer.hp))
         elif num<0:
             my_print(data,"%s损失生命%.0f，现在生命为%.0f"%(changer.name,-num,changer.hp))
+    if data['mode']==-1:
+        data['animation'].hpChange.append([changer,num,label])
 def dispel(to,n,frm,data,flag='驱散'):            
     if to.team!=frm.team:
         temp=[]
@@ -338,10 +340,11 @@ def die(to,d,data):  #处理死亡
                                      'from':i,
                                      'flag':'不弃反击',})    
 def damage(d,data):
-
+    if not d['to']:
+        return
     if 'times' not in d.keys():
         d['times']=1
-
+    
     #先判定是否触发薙魂
     if 'aoe' not in d['flag'] and '特殊aoe' not in d['flag'] and '针女' not in d['flag'] and '分摊' not in d['flag']:
         tempFlag='已判定过薙魂'
@@ -360,6 +363,23 @@ def damage(d,data):
                         my_print(data,'%s触发了御魂%s'%(thunit.name,thunit.soul))
                     d['flag'].append('薙魂')
                 break
+    if 'aoe' not in d['flag'] and '特殊aoe' not in d['flag'] and '针女' not in d['flag'] and '分摊' not in d['flag']:
+        tempFlag='已判定过金鱼挡刀'
+        for thunit in data['summons']:
+            if tempFlag not in d['from'].buff.keys() and thunit and canUsePassive(thunit,data)  and thunit.alive and thunit!=d['to'] and thunit.team==d['to'].team and thunit.type=='金鱼':
+                b={'结算':-4,  #行动后结算
+                                   '回合':1,
+                                   '驱散':0,
+                                   '有益':0,
+                                   '隐藏':1,
+                                
+                            }
+                gainBuff(d['from'],tempFlag,b,data)
+                if random()<0.5:
+                    if data['mode']==0:
+                        my_print(data,'%s触发了挡刀'%(thunit.name))
+                    d['flag'].append('金鱼挡刀')
+                break            
     if '普攻' in d['flag'] and '协战' not in d['flag'] and '多段分割' not in d['flag']:
         for i in data['uands']:
             if i.team==d['from'].team and i.alive and i.type in ('荒','姑获鸟','以津真天','番茄'):
@@ -375,10 +395,17 @@ def damage(d,data):
                     tempTarget.append(unit)
         else:
             tempTarget.append(d['to'])
-
+        if data['mode']==-1:
+            data['animation'].atk=1
+            data['animation'].atkf=d['from']
+            data['animation'].atkt=tempTarget
+            while data['animation'].atk:
+                sleep(0.1)
         
         totalFlag=[]
-        for to in tempTarget:        
+        for to in tempTarget:    
+            
+                
             flag=[]
             #通用伤害值计算属性设置
             波动=1+random()/50-0.01
@@ -623,8 +650,19 @@ def damage(d,data):
                     }
                     伤害/=2
                     damage(newd,data)
-                
-                hpChange(to,-伤害,data)
+                if '金鱼挡刀' in d['flag']:                   
+                    newd={'flag':['分摊'],
+                              'td':伤害/2,
+                              'from':d['from'],
+                              'to':thunit,
+                    }
+                    伤害/=2
+                    damage(newd,data)
+                if '暴击' in flag:
+                    label='暴击'
+                else:
+                    label=None
+                hpChange(to,-伤害,data,label=label)
                 
 
 
@@ -1054,6 +1092,9 @@ def damage(d,data):
             #茨木普攻
             if '黑焰' in d['flag']:
                 d['from'].sk1b(to,data)
+            #金鱼姬普攻
+            if '扇舞' in d['flag'] and data['summons'][d['from'].team] and data['summons'][d['from'].team].type=='金鱼':
+                d['from'].sk1b(data['summons'][d['from'].team],data)
             #樱花妖大招
             if '樱吹雪' in d['flag']:
                 d['from'].sk3b(to,data)
@@ -1219,6 +1260,13 @@ def heal(h,data):
         flag.append('暴击')
     if 治疗量==0:
         治疗量=1
+    if data['mode']==-1:
+        data['animation'].heal=1
+        data['animation'].healf=h['from']
+        data['animation'].healt=[h['to']]
+        while data['animation'].heal:
+            sleep(0.1)
+        
     hpChange(h['to'],治疗量,data)
    
     #判定珍珠
@@ -1582,9 +1630,9 @@ def showBuff(toMove,data):
     return temp
 
 def newTurn(data,flag=None):
-        if data['mode']==-1:
-            sleep(1)
         toMove=data['action'][-1]
+        if data['mode']==-1:
+            data['animation'].turn=toMove
         if data['mode']==0:
             my_print(data,'*Buff*  '+'||'.join(showBuff(toMove,data)))
         if data['mode']==0:
@@ -1594,6 +1642,7 @@ def newTurn(data,flag=None):
 #            my_print(data,'→'.join([i.name for i in data['action'][::-1]]))
             
 #行动条动一下
+
         for i in range(len(data['action'])):
             data['action'][i].po+=(1-toMove.po)/toMove.sp*data['action'][i].sp
             if data['action'][i].po>=1:
@@ -1623,6 +1672,9 @@ def newTurn(data,flag=None):
             data['action'].sort(key=lambda x:(-((1-x.po)/x.sp),x.sp,-x.id))
             if data['mode']==0:
                 my_print(data,'*Buff*  '+'||'.join(showBuff(toMove,data))+'\n'+'-'*20)
+        if data['mode']==-1:
+            data['animation'].action=None
+
 ############################################
 ############################################
 
@@ -1735,7 +1787,6 @@ def actionStartCheck(toMove,data):
         gainOrb(toMove,2,data,1)
 
 def actionOverCheck(toMove,data):
-
     #去除各种不重复计算的标记
     for unit in data['uands']:
         
@@ -1775,6 +1826,16 @@ def actionOverCheck(toMove,data):
                                 
                             }
                 gainBuff(i,tempFlag,b,data)
+    #金鱼计数
+    for i in data['summons']:
+        if i and i.alive and i.team!=toMove.team and i.type=='金鱼':
+            i.计数+=1
+            if i.计数==8:
+                i.计数=0
+                data['反击'].append({'to':toMove,
+                                           'from':i,
+                                           'flag':"金鱼反击",
+                            })
     #卖药郎看破                
     for i in data['units']:
         if i.alive==1 and i.team!=toMove.team:
@@ -1824,6 +1885,9 @@ def 邪光(self,frm,data):
     
         
 def move(toMove,data):
+    if data['mode']==-1:
+        data['animation'].action=toMove
+    
     if toMove.team==-1:
         toMove.move(data)
         return
@@ -1837,6 +1901,9 @@ def move(toMove,data):
             toMove.move(data)
 
     actionOverCheck(toMove,data)
+    if data['mode']==-1:
+        data['animation'].action=None
+    
 
 
 def turnOverCheck(toMove,data):
@@ -3728,8 +3795,8 @@ class 花鸟卷():
                         tgs.append(j)
                 if tgs:
                     self.sk3(tgs,data)              
-            
-        elif canNormalAttack(self,data):
+                    return 
+        if canNormalAttack(self,data):
             tg=None
             to_select=[]
             for i in data['uands']:
@@ -10806,7 +10873,13 @@ class 金鱼姬():
         if fj:
             d['flag'].append(fj)
         damage(d,data)
-
+        
+    def sk1b(self,tg,data):
+        h={'flag':['扇舞']}
+        h['to']=tg
+        h['from']=self
+        h['heal']=self.maxhp*0.25
+        heal(h,data)
 
     def sk3(self,data):
         if '明灯·增伤' not in self.buff.keys():
@@ -10830,13 +10903,7 @@ class 金鱼姬():
         '御魂':''
             })
         
-        b={'结算':-1,  #回合后结算
-                                   '回合':-1,
-                                   '驱散':0,
-                                   '有益':0,
-                                   '免异':-1,
-                                   }
-        gainBuff(data['summons'][self.team],'免异',b,data)
+
         data['uands'].append(data['summons'][self.team])
         data['action'].insert(1,data['summons'][self.team])
 
@@ -10858,7 +10925,7 @@ class 金鱼():
         self.id=info['id']
         self.buff={}
         
-        self.type='金鱼姬'
+        self.type='金鱼'
         
         self.maxhp=info['生命']
         self.maxhp0=info['生命']
@@ -10900,9 +10967,9 @@ class 金鱼():
             if to_select:
                 tg=sample(to_select,1)[0]
             if tg:
-                self.sk1(tg,data)
+                self.sk3(tg,data)
             
-    def sk1(self,tg,data,fj=None):
+    def sk3(self,tg,data):
         if '嘲讽' in self.buff.keys():
             tg=self.buff['嘲讽']['嘲讽']
         
@@ -10913,21 +10980,19 @@ class 金鱼():
         d['to']=tg
         d['from']=self
         d['td']=self.atk*1.25
-        if fj:
-            d['flag'].append(fj)
+
         damage(d,data)
 
 
-    def sk3(self,tg,data):
-        if '明灯·增伤' not in self.buff.keys():
-            gainOrb(self,-3,data)
+    def sk1(self,tg,data,fj=None):
         if data['mode']==0:
             my_print(data,"%s使用了金鱼·反击"%(self.name))
 
-        d={'flag':['金鱼·反击','aoe']}
+        d={'flag':['金鱼·反击','aoe','反击']}
         d['to']=tg
         d['from']=self
         d['td']=self.atk*1.2
+
         damage(d,data)
         
 soulList=['阴摩罗','心眼','鸣屋','狰','轮入道','蝠翼','镇墓兽','破势','伤魂鸟','网切','三味','针女','树妖','薙魂','钟灵','镜姬','被服','涅槃之火','地藏像','木魅','日女巳时','反枕','招财猫','雪幽魂',
@@ -10936,10 +11001,10 @@ shikigamiClassList=[山风,玉藻前,雪童子,彼岸花,荒,花鸟卷,辉夜姬
                     一目连,奴良陆生,御馔津,鬼灯,卖药郎,
                     桃花妖,雪女,鬼使白,鬼使黑,傀儡师,匣中少女,食梦貘,般若,凤凰火,孟婆,犬神,吸血姬,百目鬼,姑获鸟,络新妇,骨女,
                     鬼女红叶,黑童子,跳跳哥哥,海坊主,判官,妖狐,妖琴师,追月神,清姬,青坊主,镰鼬,二口女,弈,白狼,樱花妖,万年竹,夜叉,
-                    烟烟罗]    
+                    烟烟罗,金鱼姬]    
 shikigamiNameList=['山风','玉藻前','雪童子','彼岸花','荒','花鸟卷','辉夜姬','大天狗','酒吞童子','荒川之主','阎魔','两面佛','小鹿男','茨木童子','青行灯','妖刀姬',
                    '一目连','奴良陆生','御馔津','鬼灯','卖药郎',
                    '桃花妖','雪女','鬼使白','鬼使黑','傀儡师','匣中少女','食梦貘','般若','凤凰火','孟婆','犬神','吸血姬','百目鬼','姑获鸟','络新妇','骨女',
                    '鬼女红叶','黑童子','跳跳哥哥','海坊主','判官','妖狐','妖琴师','追月神','清姬','青坊主','镰鼬','二口女','弈','白狼','樱花妖','万年竹','夜叉',
-                   '烟烟罗']
+                   '烟烟罗','金鱼姬']
 shikigamiDict={shikigamiNameList[i]:shikigamiClassList[i] for i in range(len(shikigamiClassList))}

@@ -8,6 +8,7 @@ import threading
 from tkinter import filedialog
 from tkinter import messagebox
 import animation as anm
+from collections import deque
 
 tempFlag=0
 
@@ -318,7 +319,7 @@ def run4():
         return 0
     g={}
     g[0]=sg.裁判旗()
-
+    g[1]=pr.animation()
 #行动条的初始化
 
     action=[b[1],b[2],b[3],b[4],b[5],r[1],r[2],r[3],r[4],r[5],g[0]]
@@ -343,11 +344,11 @@ def run4():
           'ids':10,
           'log':[],
           'debug':0,
-          'animation'={},
+          'animation':g[1],
           }
     th2=threading.Thread(target=anm.main,kwargs=({'data':data}))
     th2.start()
-    th3=threading.Thread(target=pr.main,args=(-1,r,b,0))
+    th3=threading.Thread(target=pr.main,args=(-1,r,b),kwargs=({'animation':g[1]}))
     th3.start()
     
     
