@@ -8,7 +8,7 @@ import threading
 from tkinter import filedialog
 from tkinter import messagebox
 import animation as anm
-from collections import deque
+
 
 tempFlag=0
 
@@ -332,7 +332,7 @@ def run4():
           'teams':[r,b],
           'action':action,
           'win':0,
-          'mode':0,
+          'mode':-1,
           'orb':[4,4],
           'getOrb':[3,3],
           'orbPo':[0,0],
@@ -348,7 +348,7 @@ def run4():
           }
     th2=threading.Thread(target=anm.main,kwargs=({'data':data}))
     th2.start()
-    th3=threading.Thread(target=pr.main,args=(-1,r,b),kwargs=({'animation':g[1]}))
+    th3=threading.Thread(target=pr.main,args=(-1,r,b),kwargs=({'animation':g[1],'data':data}))
     th3.start()
     
     

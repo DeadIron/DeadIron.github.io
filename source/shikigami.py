@@ -214,8 +214,16 @@ def die(to,d,data):  #处理死亡
             if i.team!=to.team and i.alive and i.type=='阎魔':
                 i.sk2b(to,data)
                 break
+    #判断日和坊
+    for unit in data['units']:
+        if unit.alive and unit.team==to.team and unit.type=='日和坊':
+            unit.sk2c(to,data)
     #正常死亡的时候
     if isinstance(d,dict):
+
+        #鸟妹死亡
+        if to.type=='以津真天':
+            to.sk2c(data)
         #阴摩罗
         if d['from'].soul=="阴摩罗" and canUseSoul(d['from'],data) :
             if data['mode']==0:
@@ -345,8 +353,21 @@ def damage(d,data):
     if 'times' not in d.keys():
         d['times']=1
     
-    #先判定是否触发薙魂
+    
+        
+    
     if 'aoe' not in d['flag'] and '特殊aoe' not in d['flag'] and '针女' not in d['flag'] and '分摊' not in d['flag']:
+        #判定小松丸单体躲避
+        if d['to'].type=='小松丸' and canUsePassive(d['to'],data):
+            tg=None
+            for i in data['units']:
+                if i.alive and i.team==d['to'].team and (not tg or i.hp>tg.hp):
+                    tg=i
+            if tg and random()<0.25:
+                my_print(data,'%s触发了胆怯'%d['to'].name)
+                d['to']=tg
+                    
+        #判定是否触发薙魂        
         tempFlag='已判定过薙魂'
         for thunit in data['units']:
             if tempFlag not in d['from'].buff.keys() and thunit.soul=='薙魂' and canUseSoul(thunit,data)  and thunit.alive==1 and thunit!=d['to'] and thunit.team==d['to'].team:
@@ -382,7 +403,7 @@ def damage(d,data):
                 break            
     if '普攻' in d['flag'] and '协战' not in d['flag'] and '多段分割' not in d['flag']:
         for i in data['uands']:
-            if i.team==d['from'].team and i.alive and i.type in ('荒','姑获鸟','以津真天','番茄'):
+            if i.team==d['from'].team and i.alive and i.type in ('荒','姑获鸟','以津真天','番茄') and i!=d['from']:
                 i.co_attack(d['to'],data)
     
     times=d['times']
@@ -391,10 +412,22 @@ def damage(d,data):
         tempTarget=[]
         if 'aoe' in d['flag']:
             for unit in data['uands']:
-                if unit.alive==1 and isFriend(d['to'],unit,d['from']):
+                if unit.alive==1 and isFriend(d['to'],unit,d['from']) and not (unit.type=='小松丸' and random()<0.25):
                     tempTarget.append(unit)
         else:
             tempTarget.append(d['to'])
+        #小松丸躲aoe
+        
+        for j in tempTarget:
+            if j.type=='小松丸' and canUsePassive(j,data) and random()<0.25 and ('aoe' in d['flag'] or '特殊aoe' in d['flag']):
+                tg=None
+                for i in data['units']:
+                    if i.alive and i.team==j.team and i!=j and (not tg or i.hp>tg.hp):
+                        tg=i
+                if tg:
+                    my_print(data,'%s触发了胆怯'%j.name)
+                    tempTarget.remove(j)
+        
         if data['mode']==-1:
             data['animation'].atk=1
             data['animation'].atkf=d['from']
@@ -662,10 +695,15 @@ def damage(d,data):
                     label='暴击'
                 else:
                     label=None
+                
+                if '守护天书' in to.buff.keys() and (to.buff['守护天书']['守护天书']*to.maxhp<伤害):
+                    伤害=to.buff['守护天书']['守护天书']*to.maxhp
+                
                 hpChange(to,-伤害,data,label=label)
                 
-
-
+                if '诅咒天书' in to.buff.keys():
+                    to.buff['诅咒天书']['记录']+=伤害
+                
 
                 #缩进3个tab，多段每一段对aoe单体生效，且需破盾
                 #判定死亡
@@ -702,6 +740,10 @@ def damage(d,data):
                 #陆生被动
                 if to.type=='奴良陆生':
                     to.sk2(d,data)
+                
+                #鸟妹沾羽毛
+                if to.type=='以津真天':
+                    to.sk2b(d['from'],data)
 
                 #镜姬
                 if to.soul=='镜姬'and canUseSoul(to,data) and random()<0.3:
@@ -800,6 +842,10 @@ def damage(d,data):
                 #海坊主
                 if d['from'].type=='海坊主':
                     d['from'].sk2(伤害,data)
+                #日和坊加能量
+                for unit in data['units']:
+                    if unit.alive and unit.team==to.team and unit.type=='日和坊':
+                        unit.sk2b(0.25*伤害,data)
                 #钟灵
                 if d['from'].soul=='钟灵'and canUseSoul(d['from'],data) and '分摊' not in d['flag']:
                     tempRandom=random()
@@ -1057,7 +1103,11 @@ def damage(d,data):
             #雪童子被动
             if d['from'].type=='雪童子':
                 d['from'].sk2(to,data)
-            
+            #小松丸控制
+            if '怒气1' in d['flag']:
+                d['from'].sk3b(to,data,0.4)
+            if '怒气2' in d['flag']:
+                d['from'].sk3b(to,data)
             #凤凰火大招触发被动
             if '凤凰业火' in d['flag'] and '分摊' not in d['flag']:
                 d['from'].sk2(to,d,data)
@@ -1282,6 +1332,10 @@ def heal(h,data):
         '覆盖':['珍珠'],
                 }
         gainBuff(h['to'],'珍珠',b,data)
+    #判断日和坊
+    for unit in data['units']:
+        if unit.alive and unit.team!=h['to'].team and unit.type=='日和坊':
+            unit.sk2b(0.2*治疗量,data)
     #判定桃花的治疗暴击
     if "花之馨香" in h['flag'] and "暴击" in flag:
         for i in data['uands']:
@@ -1308,6 +1362,13 @@ def removeBuff(tg,buff,data):
             tg.hp=tg.buff[buff]['特殊']
             if data['mode']==0:
                 my_print(data,"%s触发回梦，生命回复到了%.0f"%(tg.name,tg.buff[buff]['特殊']))
+    
+    if buff=='诅咒天书':
+        d={'flag':['诅咒天书']}
+        d['to']=tg
+        d['from']=tg.buff['诅咒天书']['来源']
+        d['td']=tg.buff['诅咒天书']['记录']*tg.buff['诅咒天书']['诅咒天书']
+        damage(d,data)  
     
     if buff=='龙首之玉·幻境':
         for i in data['uands']:
@@ -1937,7 +1998,12 @@ def turnOverCheck(toMove,data):
         if i.alive==1 and i.team==toMove.team:
             if i.type=='樱花妖':
                 i.sk2(toMove,data)
-
+            
+    #日和坊奶人
+    for i in data['units']:
+        if i.alive==1 and i.team!=toMove.team:
+            if i.type=='日和坊':
+                i.sk2(data)
     
     #撕裂伤害
     if '撕裂' in toMove.buff.keys():
@@ -2172,7 +2238,9 @@ def turnStartCheck(toMove,data):
     for i in temp:
         if i in toMove.buff.keys() and toMove.buff[i]['回合']==0:
             removeBuff(toMove,i,data)
-
+    #以津真天长羽毛
+    if toMove.type=='以津真天':
+        toMove.sk2(data)
     #荒开幻境
     if toMove.type=='荒':
         toMove.sk2(data)
@@ -10995,16 +11063,927 @@ class 金鱼():
 
         damage(d,data)
         
+class 以津真天():
+    def __init__(self,info):
+        self.atki=3270
+        self.dfi=397
+        self.maxhpi=10026
+        self.spi=110
+
+        self.type='以津真天'        
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断使用哪个技能
+        tg=None
+        to_select=[]
+        temp=False
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                to_select.append(i)
+                if not temp and '羽毛·减益' in i.buff.keys():
+                    temp=True
+                    break
+                
+        if to_select:
+            tg=sample(to_select,1)[0]
+        if canUseSkill(self,data) and canUseOrb(self,3,data) and tg and temp:
+            self.sk3(tg,data)
+            
+        elif canNormalAttack(self,data) and tg:
+            self.sk1(tg,data)
+        
+
+
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了风之舞"%(self.name,tg.name))
+        
+        d={'flag':['风之舞','普攻']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.60*1.4
+        if '羽毛·增益' in self.buff.keys() and fj!='协战':
+            d['times']=self.buff['羽毛·增益']['层数']+1
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+    
+    def co_attack(self,tg,data):
+        if not canUsePassive(self,data):
+            return
+        if random()>=0.5 or '羽毛·减益' not in tg.buff.keys():
+            return
+        if isEnemy(self,tg,self):
+            self.sk1(tg,data,'协战')
+        else:
+            to_select=[]
+            for i in data['uands']:
+                if i.alive and isEnemy(self,i,self):
+                    to_select.append(i)
+            tg=sample(to_select,1)[0]
+            self.sk1(tg,data,'协战')
+
+    def sk2(self,data):
+        if not canUsePassive(self,data):
+            return
+        tempRandom=randint(1,3)
+        if '羽毛·增益' not in self.buff.keys():
+            b={'结算':-1,  #回合后结算
+                                   '回合':-1,
+                                   '驱散':1,
+                                   '有益':1,
+                                   '层数':tempRandom,
+                                   }
+            gainBuff(self,'羽毛·增益',b,data)
+        else:
+            self.buff['羽毛·增益']['层数']+=tempRandom
+            if self.buff['羽毛·增益']['层数']>3:
+                self.buff['羽毛·增益']['层数']=3
+        my_print(data,"%s获得羽毛，现在有%d根羽毛"%(self.name,self.buff['羽毛·增益']['层数']))
+    
+    def sk2b(self,tg,data):
+        if not canUsePassive(self,data):
+            return
+        if '羽毛·增益' not in self.buff.keys():
+            return
+        self.buff['羽毛·增益']['层数']-=1
+        if self.buff['羽毛·增益']['层数']==0:
+            removeBuff(self,'羽毛·增益',data)
+        if '羽毛·减益' in tg.buff.keys(): 
+            if tg.buff['羽毛·减益']['层数']>=3:
+                return
+            else:
+                tg.buff['羽毛·减益']['层数']+=3
+                tg.buff['羽毛·减益']['减疗']=tg.buff['羽毛·减益']['层数']*0.05
+                tg.buff['羽毛·减益']['受到伤害增加']=tg.buff['羽毛·减益']['层数']*0.05
+                
+        else:
+            b={'结算':-1,  #回合后结算
+                                   '回合':-1,
+                                   '驱散':1,
+                                   '有益':-1,
+                                   '层数':1,
+                                   '减疗':0.05,
+                                   '受到伤害增加':0.05,
+                                   }
+            gainBuff(tg,'羽毛·减益',b,data)
+    def sk2c(self,data):    
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                if '羽毛·减益' in i.buff.keys():
+                    d={'flag':['黄金羽']}
+                    d['to']=i
+                    d['from']=self
+                    d['td']=self.atk*0.3*1.2
+                    d['times']=i.buff['羽毛·减益']['层数']
+                    damage(d,data)
+                    removeBuff(i,'羽毛·减益',data)  
+                    
+    def sk3(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了千羽风之舞"%(self.name))
+        d={'flag':['千羽风之舞','aoe']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.6*1.2
+        d['times']=3
+        damage(d,data)
+
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                if '羽毛·减益' in i.buff.keys():
+                    d={'flag':['千羽风之舞']}
+                    d['to']=i
+                    d['from']=self
+                    d['td']=self.atk*0.3*1.2
+                    d['times']=i.buff['羽毛·减益']['层数']
+                    damage(d,data)
+                    removeBuff(i,'羽毛·减益',data)
+     
+class 鸩():
+    def __init__(self,info):
+        self.atki=3002
+        self.dfi=388
+        self.maxhpi=11393
+        self.spi=119
+
+        self.type='鸩'        
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断使用哪个技能
+        tg=None
+        to_select=[]
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                to_select.append(i)
+        if to_select:
+            tg=sample(to_select,1)[0]
+        if canUseSkill(self,data) and canUseOrb(self,3,data) and tg:
+            self.sk3(tg,data)
+        
+        elif canUseSkill(self,data) and canUseOrb(self,2,data) and tg:
+            self.sk2(tg,data)
+            
+        elif canNormalAttack(self,data) and tg:
+            self.sk1(tg,data)
+        
+
+
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了鸩羽"%(self.name,tg.name))
+        
+        d={'flag':['鸩羽','普攻']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.80*1.24
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+
+    def sk2(self,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了毒之华"%(self.name))
+        d={'flag':['毒之华','aoe']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.33
+        damage(d,data)  
+                    
+    def sk3(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了毒蚀"%(self.name))
+        d={'flag':['毒蚀']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.6*1.2
+        d['times']=3
+        damage(d,data)
+
+class 日和坊():
+    def __init__(self,info):
+        self.atki=2358
+        self.dfi=392
+        self.maxhpi=14013
+        self.spi=112
+
+        self.type='日和坊'        
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+        self.能量=0
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断使用哪个技能
+        tg=None
+        to_select=[]
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                to_select.append(i)
+        if to_select:
+            tg=sample(to_select,1)[0]
+        if canUseSkill(self,data) and canUseOrb(self,3,data) and '失去娃娃' not in self.buff.keys():
+            self.sk3(data)
+            
+        elif canNormalAttack(self,data) and tg:
+            self.sk1(tg,data)
+        
+
+
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了阳炎"%(self.name,tg.name))
+        
+        d={'flag':['阳炎','普攻']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*1.25
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+    
+
+    def sk2(self,data):
+        if not canUsePassive(self,data):
+            return
+        if self.能量<=0:
+            return
+        if '失去娃娃' in self.buff.keys():
+            return
+        my_print(data,"%s触发了晴雨获得能量"%self.name)
+        tg=None
+        to_select=[]
+        for i in data['units']:
+            if i.alive and self.team==i.team:
+                to_select.append(i)
+        to_select.sort(key=lambda x:x.hp/x.maxhp)
+        if to_select and to_select[0].hp==to_select[0].maxhp:
+            return
+        elif to_select:
+            tg=to_select[0] 
+        if tg:
+            治疗=(tg.maxhp-tg.hp)*0.3
+            if 治疗>self.能量:
+                治疗=self.能量
+            self.能量-=治疗
+            if random()<self.crit:
+                治疗*=self.critDamage
+            h={'flag':['晴雨']}
+            h['to']=tg
+            h['from']=self
+            h['heal']=治疗
+            heal(h,data)
+    
+    def sk2b(self,num,data):
+        if not canUsePassive(self,data):
+            return 
+        if '失去娃娃' in self.buff.keys():
+            return     
+        my_print(data,"%s触发了晴雨"%(self.name))    
+        self.能量+=num
+        if self.能量>self.maxhp:
+            self.能量=self.maxhp
+    
+    def sk2c(self,tg,data):
+        if not canUsePassive(self,data):
+            return 
+        if '失去娃娃' in self.buff.keys():
+            return
+        
+        my_print(data,"%s触发了晴雨"%(self.name))
+        tg.alive=1
+        data['action'].append(tg)
+        data['action'].sort(key=lambda x:(x.po,x.sp,-x.id))
+        if data['mode']==0:
+            my_print(data,"%s复活"%(tg.name))
+            
+        tg.hp=tg.maxhp
+        temp='复活过'
+        b={'结算':-1,  #回合后结算
+                                   '回合':-1,
+                                   '驱散':0,
+                                   '有益':0,
+                                   '隐藏':1
+                                   }
+        gainBuff(tg,temp,b,data)
+        newb={'结算':-1,  #回合后结算
+                                   '回合':3,
+                                   '驱散':0,
+                                   '有益':0,
+                                   }
+        gainBuff(tg,'失去娃娃',b,data)
+        
+    def sk3(self,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了滋养"%(self.name))
+        self.能量+=self.maxhp*0.25*1.6
+        if self.能量>=self.maxhp:
+            self.能量=self.maxhp
+
+class 小松丸():
+    def __init__(self,info):
+        self.atki=2921
+        self.dfi=423
+        self.maxhpi=10823
+        self.spi=115
+
+        self.type='小松丸'        
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+        self.守护加攻=0
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断使用哪个技能
+        tg=None
+        to_select=[]
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                to_select.append(i)
+        if to_select:
+            tg=sample(to_select,1)[0]
+        if tg and canUseSkill(self,data) and canUseOrb(self,3,data):
+            self.sk3(tg,data)
+        elif tg and canNormalAttack(self,data):
+            self.sk1(tg,data)
+        
+
+
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了松果一击"%(self.name,tg.name))
+        
+        d={'flag':['松果一击','普攻']}
+        d['to']=tg
+        d['from']=self
+        
+        d['td']=self.atk*1.25
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+
+
+    def sk3(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了怒气"%(self.name))
+        d={'flag':['特殊aoe','怒气1']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*1.5*1.25
+        damage(d,data)
+        for j in range(3):
+            tg=None
+            to_select=[]
+            for i in data['uands']:
+                if i.alive and self.team!=i.team:
+                    to_select.append(i)
+            if to_select:
+                tg=sample(to_select,1)[0]
+            if tg:
+                d={'flag':['特殊aoe','怒气2']}
+                d['to']=tg
+                d['from']=self
+                d['td']=self.atk*1.5*1.25*0.4**(j+1)
+                damage(d,data)
+
+    def sk3b(self,tg,data,pro=0.2):
+        if '变形·松果' in tg.buff.keys() and tg.buff['变形·松果']['回合']==2:
+            return
+
+        tempRandom=random()
+        if tempRandom<pro*(1+self.hit):
+            if tempRandom<pro*(1+self.hit)/(1+tg.resist):
+                b={'结算':-1,  #回合后结算
+                                       '回合':1,
+                                       '驱散':0,
+                                       '有益':-1,
+                                       '变形':0,
+                                       '封印被动':0,
+                                       }
+                gainBuff(tg,'变形·松果',b,data)
+            else:
+                resisted(tg,self,data)
+class 书翁():     
+    def __init__(self,info):
+        
+        self.atki=2385
+        self.dfi=490
+        self.maxhpi=11383
+        self.spi=100
+ 
+        self.type='书翁'
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断是否使用二技能
+        if canUseSkill(self,data) and canUseOrb(self,2,data):
+            temp=None
+            for i in data['units']:
+                if i.alive==1 and i.team==self.team:
+                    if i.hp<i.maxhp*0.35:
+                        if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                            temp=i
+            if temp:
+                self.sk2(temp,data)              
+                return
+        #判断是否使用三技能                
+        if canUseSkill(self,data) and canUseOrb(self,2,data):
+            temp=None
+            for i in data['units']:
+                if i.alive and i.team!=self.team:
+                    if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                        temp=i
+            if temp:
+                self.sk3(temp,data)              
+                return        
+        if canNormalAttack(self,data):
+            tg=None
+            to_select=[]
+            for i in data['uands']:
+                if i.alive and isEnemy(self,i,self):
+                    to_select.append(i)
+            if to_select:
+                tg=sample(to_select,1)[0]
+            if tg:
+                self.sk1(tg,data)                                         
+            
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了墨染"%(self.name,tg.name))
+        d={'flag':['墨染']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*1.25
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+
+    def sk2(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-2,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了云游"%(self.name))
+            
+        h={'flag':['云游']}
+        h['to']=tg
+        h['from']=self
+        h['heal']=self.maxhp*0.08
+        heal(h,data)
+        b={'结算':-1,  #回合后结算
+                                       '回合':-1,
+                                       '驱散':0,
+                                       '有益':-1,
+                                       '覆盖':['守护天书'],
+                                       '守护天书':0.09,
+                                       '来源':self,
+                                       }
+        gainBuff(tg,'守护天书',b,data)
+                
+                
+        temp=None
+        for i in data['units']:
+            if i.alive and i.team==self.team and i!=tg:
+                if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                   temp=i
+        if temp:
+            h={'flag':['云游']}
+            h['to']=temp
+            h['from']=self
+            h['heal']=self.maxhp*0.08
+            heal(h,data)
+            b={'结算':-1,  #回合后结算
+                                       '回合':-1,
+                                       '驱散':0,
+                                       '有益':-1,
+                                       '覆盖':['守护天书'],
+                                       '守护天书':0.09,
+                                       '来源':self,
+                                       }
+            gainBuff(temp,'守护天书',b,data)
+            
+        temp=None
+        for i in data['units']:
+            if i.alive and i.team!=self.team:
+                if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                   temp=i
+        if temp: 
+            b={'结算':-1,  #回合后结算
+                                       '回合':-1,
+                                       '驱散':1,
+                                       '有益':-1,
+                                       '覆盖':['诅咒天书'],
+                                       '诅咒天书':0.5,
+                                       '记录':0,
+                                       '来源':self,
+                                       }
+            gainBuff(temp,'诅咒天书',b,data)
+            d={'flag':['云游']}
+            d['to']=temp
+            d['from']=self
+            d['td']=self.atk*0.8
+            damage(d,data)
+        
+    def sk3(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-2,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了万象之书"%(self.name))
+            
+        b={'结算':-1,  #回合后结算
+                                       '回合':-1,
+                                       '驱散':1,
+                                       '有益':-1,
+                                       '覆盖':['诅咒天书'],
+                                       '诅咒天书':1,
+                                       '记录':0,
+                                       '来源':self,
+                                       }
+        gainBuff(tg,'诅咒天书',b,data)
+        d={'flag':['万象之书']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*0.8
+        damage(d,data)  
+                
+                
+        temp=None
+        for i in data['units']:
+            if i.alive and i.team!=self.team and i!=tg:
+                if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                   temp=i
+        if temp:
+            b={'结算':-1,  #回合后结算
+                                           '回合':-1,
+                                           '驱散':1,
+                                           '有益':-1,
+                                           '覆盖':['诅咒天书'],
+                                           '诅咒天书':1,
+                                           '记录':0,
+                                           '来源':self,
+                                           }
+            gainBuff(temp,'诅咒天书',b,data)
+            d={'flag':['万象之书']}
+            d['to']=temp
+            d['from']=self
+            d['td']=self.atk*0.8
+            damage(d,data)  
+            
+        temp=None
+        for i in data['units']:
+            if i.alive and i.team==self.team:
+                if not temp or temp.hp/temp.maxhp>i.hp/i.maxhp:
+                   temp=i
+        if temp: 
+            h={'flag':['云游']}
+            h['to']=temp
+            h['from']=self
+            h['heal']=self.maxhp*0.08
+            heal(h,data)
+            b={'结算':-1,  #回合后结算
+                                       '回合':-1,
+                                       '驱散':0,
+                                       '有益':-1,
+                                       '覆盖':['守护天书'],
+                                       '守护天书':0.15,
+                                       '来源':self,
+                                       }
+            gainBuff(temp,'守护天书',b,data) 
+    def sk3b(self,data):
+        for i in data['unit']:
+            if ('守护天书' in i.buff.keys() and i.buff['守护天书']['来源']==self):
+                removeBuff(i,'守护天书',data)
+            if ('诅咒天书' in i.buff.keys() and i.buff['诅咒天书']['来源']==self):
+                removeBuff(i,'诅咒天书',data)
+class 薰():
+    def __init__(self,info):
+        self.atki=2921
+        self.dfi=423
+        self.maxhpi=10823
+        self.spi=115
+
+        self.type='薰'        
+
+        self.sp=info['速度']
+        self.sp0=info['速度']
+        
+        self.name=info['名字']
+        self.team=info['队伍']
+        self.po=info['位置']
+        self.alive=1
+        self.id=info['id']
+        self.buff={}
+        
+        self.maxhp=info['生命']
+        self.maxhp0=info['生命']
+        self.hp=info['生命']
+
+        self.atk=info['攻击']
+        self.atk0=info['攻击']
+        
+        self.df=info['防御']
+        self.df0=info['防御']
+
+        self.crit=info['暴击']
+        self.crit0=info['暴击']
+        
+        self.critDamage=info['暴击伤害']
+        self.critDamage0=info['暴击伤害']
+        
+        self.resist=info['效果抵抗']
+        self.resist0=info['效果抵抗']
+        
+        self.hit=info['效果命中']
+        self.hit0=info['效果命中']
+        
+        self.soul=info['御魂']
+        self.守护加攻=0
+
+    def __repr__(self):
+        return '%s:%.2f'%(self.name,self.po)
+
+    def move(self,data):
+        #判断使用哪个技能
+        tg=None
+        to_select=[]
+        for i in data['uands']:
+            if i.alive and self.team!=i.team:
+                to_select.append(i)
+        if to_select:
+            tg=sample(to_select,1)[0]
+        if tg and canUseSkill(self,data) and canUseOrb(self,3,data):
+            self.sk3(tg,data)
+        elif tg and canNormalAttack(self,data):
+            self.sk1(tg,data)
+        
+
+
+    def sk1(self,tg,data,fj=None):
+        if '嘲讽' in self.buff.keys():
+            tg=self.buff['嘲讽']['嘲讽']
+        if data['mode']==0:
+            my_print(data,"%s对%s使用了小石头之击"%(self.name,tg.name))
+        
+        d={'flag':['小石头之击','普攻']}
+        d['to']=tg
+        d['from']=self
+        
+        d['td']=self.atk*1.25
+        if fj:
+            d['flag'].append(fj)
+        damage(d,data)
+
+
+    def sk3(self,tg,data):
+        if '明灯·增伤' not in self.buff.keys():
+            gainOrb(self,-3,data)
+        if data['mode']==0:
+            my_print(data,"%s使用了怒气"%(self.name))
+        d={'flag':['特殊aoe','怒气1']}
+        d['to']=tg
+        d['from']=self
+        d['td']=self.atk*1.5*1.25
+        damage(d,data)
+        for j in range(3):
+            tg=None
+            to_select=[]
+            for i in data['uands']:
+                if i.alive and self.team!=i.team:
+                    to_select.append(i)
+            if to_select:
+                tg=sample(to_select,1)[0]
+            if tg:
+                d={'flag':['特殊aoe','怒气2']}
+                d['to']=tg
+                d['from']=self
+                d['td']=self.atk*1.5*1.25*0.4**(j+1)
+                damage(d,data)
+
+    def sk3b(self,tg,data,pro=0.2):
+        if '变形·松果' in tg.buff.keys() and tg.buff['变形·松果']['回合']==2:
+            return
+
+        tempRandom=random()
+        if tempRandom<pro*(1+self.hit):
+            if tempRandom<pro*(1+self.hit)/(1+tg.resist):
+                b={'结算':-1,  #回合后结算
+                                       '回合':1,
+                                       '驱散':0,
+                                       '有益':-1,
+                                       '变形':0,
+                                       '封印被动':0,
+                                       }
+                gainBuff(tg,'变形·松果',b,data)
+            else:
+                resisted(tg,self,data)       
 soulList=['阴摩罗','心眼','鸣屋','狰','轮入道','蝠翼','镇墓兽','破势','伤魂鸟','网切','三味','针女','树妖','薙魂','钟灵','镜姬','被服','涅槃之火','地藏像','木魅','日女巳时','反枕','招财猫','雪幽魂',
 '媚妖','珍珠','火灵','蚌精','魍魉之匣','返魂香','骰子鬼']      
 shikigamiClassList=[山风,玉藻前,雪童子,彼岸花,荒,花鸟卷,辉夜姬,大天狗,酒吞童子,荒川之主,阎魔,两面佛,小鹿男,茨木童子,青行灯,妖刀姬,
                     一目连,奴良陆生,御馔津,鬼灯,卖药郎,
                     桃花妖,雪女,鬼使白,鬼使黑,傀儡师,匣中少女,食梦貘,般若,凤凰火,孟婆,犬神,吸血姬,百目鬼,姑获鸟,络新妇,骨女,
                     鬼女红叶,黑童子,跳跳哥哥,海坊主,判官,妖狐,妖琴师,追月神,清姬,青坊主,镰鼬,二口女,弈,白狼,樱花妖,万年竹,夜叉,
-                    烟烟罗,金鱼姬]    
+                    烟烟罗,金鱼姬,以津真天,鸩,日和坊,小松丸,书翁]    
 shikigamiNameList=['山风','玉藻前','雪童子','彼岸花','荒','花鸟卷','辉夜姬','大天狗','酒吞童子','荒川之主','阎魔','两面佛','小鹿男','茨木童子','青行灯','妖刀姬',
                    '一目连','奴良陆生','御馔津','鬼灯','卖药郎',
                    '桃花妖','雪女','鬼使白','鬼使黑','傀儡师','匣中少女','食梦貘','般若','凤凰火','孟婆','犬神','吸血姬','百目鬼','姑获鸟','络新妇','骨女',
                    '鬼女红叶','黑童子','跳跳哥哥','海坊主','判官','妖狐','妖琴师','追月神','清姬','青坊主','镰鼬','二口女','弈','白狼','樱花妖','万年竹','夜叉',
-                   '烟烟罗','金鱼姬']
+                   '烟烟罗','金鱼姬','以津真天','鸩','日和坊','小松丸','书翁']
 shikigamiDict={shikigamiNameList[i]:shikigamiClassList[i] for i in range(len(shikigamiClassList))}

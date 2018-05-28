@@ -18,6 +18,12 @@ def timeToRemove(time):
     return temp
 
 def showLabel(data):
+    if data['win']!=0:
+        turn_label = pyglet.text.Label(text="%d队胜利"%(data['win']), x=640, y=640,anchor_x="center")
+        turn_label.font_size=30
+        turn_label.bold=True
+        turn_label.draw()
+        return
     if data['animation'].turn:
         turn_label = pyglet.text.Label(text="%s的回合"%(data['animation'].turn.name), x=640, y=640,anchor_x="center")
         turn_label.font_size=30
@@ -27,7 +33,12 @@ def showLabel(data):
         action_label = pyglet.text.Label(text="%s的行动"%(data['animation'].action.name), x=640, y=600,anchor_x="center")
         action_label.font_size=24
         action_label.draw()
-
+    leftOrb_label = pyglet.text.Label(text="火:%d\n格:%d"%(data['orb'][0],data['orbPo'][0]), x=240, y=600,anchor_x="center")
+    leftOrb_label.font_size=20
+    leftOrb_label.draw()    
+    rightOrb_label = pyglet.text.Label(text="火:%d\n格:%d"%(data['orb'][1],data['orbPo'][0]), x=1000, y=600,anchor_x="center")
+    rightOrb_label.font_size=20
+    rightOrb_label.draw()    
 def drawHp(batt_sprs,data):
     for i,unit in enumerate(data['units']):
         if i<5: 
@@ -43,7 +54,7 @@ def drawHp(batt_sprs,data):
             batt_sprs[i].visible=False
 def drawPo(po_sprs,data):            
     for i,unit in enumerate(po_sprs):
-        if unit == data['animation'].turn:
+        if data['animation'].turn in data['units'] and i == data['units'].index(data['animation'].turn):
             unit.x=1220
         else:
             unit.x=data['units'][i].po*1000
@@ -60,6 +71,8 @@ def atk(attack_sprs,data):
             ifrm=data['units'].index(frm)
             attack_img=pyglet.resource.image("sword.jpg")
             temp=pyglet.sprite.Sprite(img=attack_img,x=battx[ifrm]+60,y=batty[ifrm]+60)
+            temp.anchor_x='center'
+            temp.anchor_y='center'
             temp.scale=0.04
             temp.draw()
             attack_sprs[i]=temp
@@ -76,7 +89,7 @@ def atk(attack_sprs,data):
             attack_sprs[i].x+=vx
             attack_sprs[i].y+=vy
             attack_sprs[i].draw()
-            if battx[ito]+60 ==int(attack_sprs[i].x):
+            if (ito<=4 and battx[ito] > int(attack_sprs[i].x)) or (ito>4 and battx[ito] < int(attack_sprs[i].x)):
                 del attack_sprs[i]
             if not attack_sprs:
                 anm.atk=0
@@ -88,10 +101,14 @@ def heal(heal_sprs,data):
             frm=anm.healf
             ifrm=data['units'].index(frm)
             heal_img=pyglet.resource.image("4.png")
-            temp=pyglet.sprite.Sprite(img=heal_img,x=battx[ifrm]+160,y=batty[ifrm]+60)
+            temp=pyglet.sprite.Sprite(img=heal_img,x=battx[ifrm],y=batty[ifrm]+60)
+            temp.anchor_x='center'
+            temp.anchor_y='center'
             temp.scale=0.5
             if ifrm>4:
-                temp.x-200
+                temp.x-=160
+            else:
+                temp.x+=160
             temp.draw()
             heal_sprs[i]=temp
             anm.heal=2
@@ -101,13 +118,19 @@ def heal(heal_sprs,data):
         for i,to in enumerate(data['animation'].healt):
             ito=data['units'].index(to)
 
-            vx=(battx[ito]-battx[ifrm]-160)/50
+            vx=(battx[ito]-battx[ifrm])
+            if ifrm>4:
+                vx+=160
+                vx/=50
+            else:
+                vx-=160
+                vx/=50
             vy=(batty[ito]-batty[ifrm]-60)/50
             
             heal_sprs[i].x+=vx
             heal_sprs[i].y+=vy
             heal_sprs[i].draw()
-            if battx[ito] in (int(heal_sprs[i].x),int(heal_sprs[i].x)):
+            if (ito<=4 and battx[ito] > int(heal_sprs[i].x)) or (ito>4 and battx[ito] < int(heal_sprs[i].x)):
                 del heal_sprs[i]
             if not heal_sprs:
                 anm.heal=0
@@ -185,6 +208,7 @@ def main(data):
         heal(heal_sprs,data)
         showLabel(data)
         drawDamage(damage_sprs,data)
+#        pyglet.clock.ClockDisplay()
         
     pyglet.clock.schedule_interval(update,1/120.0)
     pyglet.app.run()

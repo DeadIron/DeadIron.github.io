@@ -184,7 +184,7 @@ if __name__=='__main__':
         })
 
 
-def main(mode,r,b,rwins=[0],debug=0,animation=None):
+def main(mode,r,b,rwins=[0],debug=0,animation=None,data=None):
 #############################后面的不要乱动了############################
     g={}
     g[0]=裁判旗()
@@ -195,26 +195,26 @@ def main(mode,r,b,rwins=[0],debug=0,animation=None):
     action.sort(key=lambda x:(x.sp,-x.id))
 
 #设立data是为了后面能够更容易传参，利用了python传字典参数时浅拷贝，变相使得变量全局化，同时使得调全局变量更加统一有条理。
-
-    data={'units':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
-          'uands':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
-          'teams':[r,b],
-          'action':action,
-          'win':0,
-          'mode':mode,
-          'orb':[4,4],
-          'getOrb':[3,3],
-          'orbPo':[0,0],
-          'swords':0,
-          'extra':[],
-          '反击':[],
-          'summons':[None,None],
-          'summonsSpecial':[None,None,None,None,None,None,None,None,None,None],
-          'ids':10,
-          'log':[],
-          'debug':debug,
-          'animation':animation,
-          }
+    if not data:
+        data={'units':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
+              'uands':[r[1],r[2],r[3],r[4],r[5],b[1],b[2],b[3],b[4],b[5]],
+              'teams':[r,b],
+              'action':action,
+              'win':0,
+              'mode':mode,
+              'orb':[4,4],
+              'getOrb':[3,3],
+              'orbPo':[0,0],
+              'swords':0,
+              'extra':[],
+              '反击':[],
+              'summons':[None,None],
+              'summonsSpecial':[None,None,None,None,None,None,None,None,None,None],
+              'ids':10,
+              'log':[],
+              'debug':debug,
+              'animation':animation,
+              }
     data['units'].sort(key=lambda x:x.id)
 
     rate=2.42
